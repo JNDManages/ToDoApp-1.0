@@ -1,30 +1,46 @@
+require('dotenv').config();
 const express = require('express');
-const bodyParser = require('body-parser');
 const cors = require('cors');
+const bodyParser = require('body-parser');
+const mongoose = require('mongoose');
+
 const app = express();
-const port = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
+
+// Connect to MongoDB using the environment variable
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log('MongoDB connected'))
+    .catch(err => console.error('MongoDB connection error:', err));
+
+const taskSchema = new mongoose.Schema({
+    text: String,
+    completed: Boolean
+});
+
+const Task = mongoose.model('Task', taskSchema);
 
 app.use(cors());
 app.use(bodyParser.json());
 
-let tasks = [];
-
-app.get('/tasks', (req, res) => {
+app.get('/tasks', async (req, res) => {
+    const tasks = await Task.find();
     res.json(tasks);
 });
 
-app.post('/tasks', (req, res) => {
-    const task = req.body;
-    tasks.push(task);
-    res.status(201).json(task);
+app.post('/tasks', async (req, res) => {
+    const newTask = new Task({
+        text: req.body.text,
+        completed: false
+    });
+    await newTask.save();
+    res.json(newTask);
 });
 
-app.delete('/tasks/:id', (req, res) => {
-    const taskId = req.params.id;
-    tasks = tasks.filter(task => task.id !== taskId);
-    res.status(204).send();
+app.delete('/tasks/:id', async (req, res) => {
+    await Task.findByIdAndDelete(req.params.id);
+    res.sendStatus(200);
 });
 
-app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });
